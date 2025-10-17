@@ -1,41 +1,42 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
-using G2App.Models;
+using System;
+using System.Data.SqlClient;
+using System.Web.Mvc;
+using G2.Models;
 
-namespace G2App.Controllers
+namespace G2.Controllers
 {
     public class ValueController : Controller
     {
-        private readonly IConfiguration _configuration;
+        private readonly string connectionString;
 
-        public ValueController(IConfiguration configuration)
+        public ValueController()
         {
-            _configuration = configuration;
+            connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["SqlConnectionString"].ConnectionString;
         }
 
-        public IActionResult Index()
+        public ActionResult Index()
         {
-            string value = string.Empty;
-            string connectionString = _configuration.GetConnectionString("SqlConnectionString");
-
+            string value = "No data found";
             try
             {
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     connection.Open();
-                    string query = "SELECT TOP 1 columnx FROM tablex"; // Replace with your table/column
+                    string query = "SELECT TOP 2 columnx FROM tablex";
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        value = command.ExecuteScalar()?.ToString() ?? "No data found";
+                        object result = command.ExecuteScalar();
+                        value = result != null ? result.ToString() : "No data found";
                     }
                 }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Database Error: {ex.Message}");
                 value = $"Error: {ex.Message}";
             }
 
-            var model = new ValueModel { DisplayValue = value };
+            var model = new DatabaseValue { Value = value };
             return View(model);
         }
     }
