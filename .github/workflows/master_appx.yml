@@ -1,38 +1,56 @@
-name: Secret Value found!!
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy ASP app to Azure Web App - appx
+
 on:
   push:
-  public:
+    branches:
+      - master
+  workflow_dispatch:
+
 jobs:
-  scan:
-    name: gitleaks
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+
     steps:
-     - name: Checkout
-       uses: actions/checkout@v3 
-     - name: Install the gitleaks
-       run: wget https://github.com/zricethezav/gitleaks/releases/download/v8.15.2/gitleaks_8.15.2_linux_x64.tar.gz
-       shell: pwsh
-     - name: Extract the tar file
-       run: tar xzvf gitleaks_8.15.2_linux_x64.tar.gz
-     - name: Generate the report
-       id: gitleaks
-       run: $GITHUB_WORKSPACE/gitleaks detect -s $GITHUB_WORKSPACE -f json -r $GITHUB_WORKSPACE/leaksreport.json
-       shell: bash
-       continue-on-error: true
-     - name: Setup NuGet.exe
-       if: steps.gitleaks.outcome != 'success'
-       uses: nuget/setup-nuget@v1
-       with:
-          nuget-version: latest
-     - name: Install the dotnet
-       if: steps.gitleaks.outcome != 'success'
-       uses: actions/setup-dotnet@v3
-       with:
-          dotnet-version: '3.1.x'
-     - name: Install the report tool packages
-       if: steps.gitleaks.outcome != 'success'
-       run: |
-           nuget install "Syncfusion.Email" -source "https://nexus.syncfusion.com/repository/nuget-hosted/" -version 1.1.0
-           dir $GITHUB_WORKSPACE/Syncfusion.Email.1.1.0/lib/netcoreapp3.1
-           dotnet $GITHUB_WORKSPACE/Syncfusion.Email.1.1.0/lib/netcoreapp3.1/GitleaksReportMail.dll "citeam@syncfusion.com" "$GITHUB_REF_NAME" ${{ secrets.NETWORKCREDENTIALS }} ${{ secrets.NETWORKKEY }} "$GITHUB_WORKSPACE" "boldbi"
-           exit 1
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild path
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v1.0.5
+
+      - name: Restore NuGet packages
+        run: nuget restore
+
+      - name: Publish to folder
+        run: msbuild /nologo /verbosity:m /t:Build /t:pipelinePreDeployCopyAllFilesToOneFolder /p:_PackageTempDir="\published\"
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASP-app
+          path: '/published/**'
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: ASP-app
+      
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'appx'
+          slot-name: 'Production'
+          package: .
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_10C8FF10614D489FAE281B7C6B0B3B16 }}
