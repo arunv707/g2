@@ -1,12 +1,16 @@
-@model G2App.Models.ValueModel
+@model G2.Models.DatabaseValue
+@{
+    ViewBag.Title = "Database Value";
+}
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Display Value</title>
+    <title>Database Value</title>
 </head>
 <body>
-    <h1>Database Value</h1>
-    <p>Value from Azure SQL: @Model.DisplayValue</p>
+    <h2>Value from Azure SQL Database</h2>
+    <p>@Model.Value</p>
+    <a href="@Url.Action("Index", "Home")">Back to Home</a>
 </body>
 </html>
